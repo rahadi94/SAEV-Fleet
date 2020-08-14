@@ -14,11 +14,11 @@ env = simpy.Environment()
 # Initialize Vehicles
 
 def generate_location():
-    return Location(random.uniform(13.00, 13.80), random.uniform(52.00, 53.00))
+    return Location(random.uniform(13.08, 13.80), random.uniform(52.20, 52.70))
 
 
 vehicles_data = []
-for i in range(500):
+for i in range(200):
     vehicle_data = dict(id=i, env=env, initial_location=generate_location(), capacity=50, charge_state=100,
                         mode='idle')
     vehicles_data.append(vehicle_data)
@@ -35,28 +35,18 @@ for data in vehicles_data:
         data['mode']
     )
     vehicles.append(vehicle)
-vehicles = vehicles[:500]
 # Initializing charging stations
 
-CS_data = [
+CSs_data = []
+for i in range(10):
+    CS_data = dict(id=i, env=env, location=generate_location(), power=11/60, Number_of_chargers=3)
+    CSs_data.append(CS_data)
 
-    dict(id=1, env=env, location=Location(13.85, 52.90), power=11/60, Number_of_chargers=3),
-    dict(id=2, env=env, location=Location(13.10, 52.00), power=11/60, Number_of_chargers=2),
-    dict(id=3, env=env, location=Location(13.20, 52.95), power=11/60, Number_of_chargers=4),
-    dict(id=4, env=env, location=Location(13.95, 52.05), power=11/60, Number_of_chargers=2),
-    dict(id=5, env=env, location=Location(13.05, 52.90), power=11/60, Number_of_chargers=3),
-    dict(id=6, env=env, location=Location(13.40, 52.30), power=11/60, Number_of_chargers=2),
-    dict(id=7, env=env, location=Location(13.10, 52.00), power=11/60, Number_of_chargers=4),
-    dict(id=8, env=env, location=Location(13.35, 52.50), power=11/60, Number_of_chargers=2),
-    dict(id=9, env=env, location=Location(13.95, 52.60), power=11/60, Number_of_chargers=5),
-    dict(id=10, env=env, location=Location(13.55, 52.75), power=11/60, Number_of_chargers=2),
-
-]
 
 # Initialize Charging Stations
 charging_stations = list()
 
-for data in CS_data:
+for data in CSs_data:
     charging_station = (ChargingStation(
         data['id'],
         data['env'],
@@ -69,7 +59,7 @@ for data in CS_data:
 charging_stations = charging_stations[:10]
 
 PKs_data = []
-for i in range(40):
+for i in range(100):
     PK_data = dict(id=i, env=env, location=generate_location(), Number_of_parkings=10)
     PKs_data.append(PK_data)
 

@@ -1,4 +1,4 @@
-import random
+
 import pandas as pd
 import simpy
 import logging
@@ -21,7 +21,7 @@ lg.addHandler(stream_handler)
 
 
 # This function give us the available vehicles for a trip
-def available_vehicle(vehicles, trip, SOC_treshold=20, max_distance=10):
+def available_vehicle(vehicles, trip, SOC_treshold=20, max_distance=20):
     available_vehicles = list()
     for vehicle in vehicles:
         distance_to_pickup = vehicle.location.distance(trip.origin)
@@ -30,7 +30,8 @@ def available_vehicle(vehicles, trip, SOC_treshold=20, max_distance=10):
                              vehicle.fuel_consumption * 100.0 / vehicle.battery_capacity
         # Add idle vehicles that have enough energy to respond the trip into available vehicles and are not far away too much
         if distance_to_pickup <= max_distance:
-            if charge_consumption + SOC_treshold <= vehicle.charge_state and vehicle.mode in ['idle', 'parking', 'ertp']:
+            if charge_consumption + SOC_treshold <= vehicle.charge_state and vehicle.mode in ['idle', 'parking', 'ertp',
+                                                                                              'circling']:
                 available_vehicles.append(vehicle)
     return available_vehicles
 
@@ -61,7 +62,7 @@ class Model:
         yield vehicle.parking_stop
 
     def parking_task(self, vehicle):
-        if vehicle.charge_state >= 40 and vehicle.mode == 'idle':
+        if vehicle.charge_state >= 40 and vehicle.mode in ['circling', 'idle']:
             # Finding the closest parking
             distances_to_PKs = [vehicle.location.distance(PK.location) for PK in self.parkings]
             parking = [x for x in self.parkings
@@ -148,7 +149,6 @@ class Model:
         distances = [vehicle.location.distance(trip.origin) for vehicle in available_vehicles]
         # If there is no available vehicle, add the trip to the waiting list
         if len(available_vehicles) == 0:
-            #trip.mode = 'missed'
             return
         # Assigning the closest available vehicle to the trip
         print(f'There is/are {len(available_vehicles)} available vehicle(s) for trip {trip.id}')
@@ -157,6 +157,9 @@ class Model:
         if vehicle.mode == 'parking':
             vehicle.parking_stop.succeed()
             vehicle.parking_stop = self.env.event()
+        if vehicle.mode == 'circling':
+            vehicle.circling_stop.succeed()
+            vehicle.circling_stop = self.env.event()
         self.env.process(self.take_trip(trip, vehicle))
 
     def trip_generation(self, zone):
@@ -208,6 +211,10 @@ class Model:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
                         yield self.env.timeout(0)
+                vehicle.mode = 'circling'
+                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
+                yield self.env.timeout(10) | vehicle.circling_stop
+                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
                 self.env.process(self.parking_task(vehicle))
                 yield self.env.timeout(0.1)
 
@@ -219,6 +226,12 @@ class Model:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
                         yield self.env.timeout(0)
+                vehicle.mode = 'circling'
+                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
+                yield self.env.timeout(10) | vehicle.circling_stop
+                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
+                self.env.process(self.parking_task(vehicle))
+                yield self.env.timeout(0.1)
 
             if event_charging_interuppt in events:
                 print(f'Charging get interrupted at {self.env.now}')
@@ -226,6 +239,12 @@ class Model:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
                         yield self.env.timeout(0)
+                vehicle.mode = 'circling'
+                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
+                yield self.env.timeout(10) | vehicle.circling_stop
+                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
+                self.env.process(self.parking_task(vehicle))
+                yield self.env.timeout(0.1)
 
     def obs_Ve(self, vehicle):
         self.t = []
