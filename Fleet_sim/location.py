@@ -1,7 +1,21 @@
 from geopy.distance import geodesic
 import random
-from shapely.geometry import Polygon, Point, shape
+from shapely.geometry import Point, shape
 from h3 import h3
+
+
+'''def find_zone(loc, zones):
+    hexagon = h3.geo_to_h3(loc.lat, loc.long, 7)
+    position = [x for x in zones
+                if x.hexagon == hexagon][0]
+    return position'''
+
+
+def find_zone(loc, zones):
+    distances_to_centers = [loc.distance(zone.centre) for zone in zones]
+    position = [x for x in zones
+                if x.centre.distance(loc) == min(distances_to_centers)][0]
+    return position
 
 
 class Location:
@@ -14,12 +28,6 @@ class Location:
         origin = [self.lat, self.long]
         destination = [loc.lat, loc.long]
         return geodesic(origin, destination).kilometers
-
-    def find_zone(self, zones):
-        distances_to_centers = [self.distance(zone.centre) for zone in zones]
-        position = [x for x in zones
-                    if x.centre.distance(self) == min(distances_to_centers)][0]
-        return position
 
 
 def generate_random(hex):
