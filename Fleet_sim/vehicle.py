@@ -81,7 +81,7 @@ class Vehicle:
         self.costs['charging'] = 0.0
         self.costs['parking'] = 0.0
         self.parking_stop = env.event()
-        self.circling_stop = env.event()
+
 
     def send(self, trip):
         self.mode = 'locked'

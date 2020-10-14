@@ -1,4 +1,3 @@
-
 import pandas as pd
 import simpy
 import logging
@@ -46,16 +45,19 @@ class Model:
         self.waiting_list = []
         self.simulation_time = simulation_time
         self.env = env
-        self.trip_end = env.event()
         self.trip_start = env.event()
+        self.trip_end = env.event()
         self.charging_start = env.event()
         self.charging_end = env.event()
         self.charging_interrupt = env.event()
-        self.relocation_start = env.event()
-        self.relocation_end = env.event()
+        self.circling_stop = env.event()
 
     def park(self, vehicle, parking):
         if self.env.now > 5:
+            vehicle.mode = 'circling'
+            print(f'vehicle {vehicle.id} start circling at {self.env.now}')
+            yield self.env.timeout(10) | self.circling_stop
+            print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
             vehicle.send_parking(parking)
             yield self.env.timeout(vehicle.time_to_parking)
         vehicle.parking(parking)
@@ -158,8 +160,8 @@ class Model:
             vehicle.parking_stop.succeed()
             vehicle.parking_stop = self.env.event()
         if vehicle.mode == 'circling':
-            vehicle.circling_stop.succeed()
-            vehicle.circling_stop = self.env.event()
+            self.circling_stop.succeed()
+            self.circling_stop = self.env.event()
         self.env.process(self.take_trip(trip, vehicle))
 
     def trip_generation(self, zone):
@@ -181,7 +183,7 @@ class Model:
             for trip in self.waiting_list:
                 if trip.mode == 'unassigned' and self.env.now > (trip.start_time + 10):
                     trip.mode = 'missed'
-                    print (f'trip {trip.id} is missed at {self.env.now}')
+                    print(f'trip {trip.id} is missed at {self.env.now}')
             yield self.env.timeout(1)
 
     def run(self):
@@ -200,21 +202,19 @@ class Model:
                 for trip in self.waiting_list:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
-                        yield self.env.timeout(0)
+                        yield self.env.timeout(0.1)
+
             if event_trip_end in events:
                 print(f'A vehicle get idle at {self.env.now}')
                 vehicle = [v for v in self.vehicles if v.id == self.vehicle_id][0]
                 self.env.process(self.charge_task(vehicle))
                 yield self.env.timeout(0.1)
                 self.relocate_task(vehicle)
+                yield self.env.timeout(0.1)
                 for trip in self.waiting_list:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
-                        yield self.env.timeout(0)
-                vehicle.mode = 'circling'
-                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
-                yield self.env.timeout(10) | vehicle.circling_stop
-                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
+                        yield self.env.timeout(0.1)
                 self.env.process(self.parking_task(vehicle))
                 yield self.env.timeout(0.1)
 
@@ -225,11 +225,7 @@ class Model:
                 for trip in self.waiting_list:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
-                        yield self.env.timeout(0)
-                vehicle.mode = 'circling'
-                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
-                yield self.env.timeout(10) | vehicle.circling_stop
-                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
+                        yield self.env.timeout(0.1)
                 self.env.process(self.parking_task(vehicle))
                 yield self.env.timeout(0.1)
 
@@ -238,11 +234,7 @@ class Model:
                 for trip in self.waiting_list:
                     if trip.mode == 'unassigned':
                         self.trip_task(trip)
-                        yield self.env.timeout(0)
-                vehicle.mode = 'circling'
-                print(f'vehicle {vehicle.id} start circling at {self.env.now}')
-                yield self.env.timeout(10) | vehicle.circling_stop
-                print(f'vehicle {vehicle.id} stop circling at {self.env.now}')
+                        yield self.env.timeout(0.1)
                 self.env.process(self.parking_task(vehicle))
                 yield self.env.timeout(0.1)
 
